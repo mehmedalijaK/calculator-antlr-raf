@@ -3,42 +3,23 @@ grammar Calculator;
 start: statement* ;
 
 statement
-    : vectorDeclaration ';'
+    : declaration ';'
     | printStatement ';'
     | expr ';'
     ;
 
-vectorDeclaration
-    : 'vector' IDENTIFIER EQUAL vectorExpr  // Vector assignment
-    | 'vector' IDENTIFIER EQUAL expr        // Vector can also be assigned
+declaration
+    : 'let' IDENTIFIER '=' expr
     ;
 
 printStatement
-    : PRINT OPEN_BRACKET printArg (COMMA printArg)* CLOSED_BRACKET // Print statement
+    : PRINT '(' expr (COMMA expr)* ')' // Print statement
     ;
 
-printArg
-    : IDENTIFIER                  // Print a single identifier
-    | expr                        // Print an expression
-    | vectorExpr                  // Print a vector expression
-    ;
-
-vectorExpr
-    : VECTOR_OPEN (vectorElement (COMMA vectorElement)*)? VECTOR_CLOSE // 1D vector
-    | VECTOR_OPEN (vectorExpr (COMMA vectorExpr)*)? VECTOR_CLOSE       // 2D vector
-    ;
-
-vectorElement
-    : NUMBER
-    | IDENTIFIER                    // Vector elements can be numbers or previously defined vectors
-    | vectorExpr                    // Allow nested vector expressions
-    ;
-
-expr: additionExpr ((PLUS | MINUS) additionExpr)* ;
+expr: additionExpr;
 
 additionExpr
-    : multiplicationExpr ((PLUS | MINUS) multiplicationExpr)*
-    | vectorExpr ((PLUS | MINUS) vectorExpr)* ;
+    : multiplicationExpr ((PLUS | MINUS) multiplicationExpr)*;
 
 multiplicationExpr
     : exponentExpr ((STAR | SLASH) exponentExpr)* ;
@@ -49,15 +30,19 @@ exponentExpr
 atom
     : NUMBER
     | IDENTIFIER
-    | OPEN_BRACKET expr CLOSED_BRACKET
-    | vectorExpr
+    | '(' expr ')'
+    | vectorLiteral
+    ;
+
+vectorLiteral
+    : '<' (expr (COMMA expr)*)? '>'
     ;
 
 // Lexer rules
 fragment DIGIT: [0-9];
 
-OPEN_BRACKET: '(';
-CLOSED_BRACKET: ')';
+LEFT_PAREN: '(';
+RIGHT_PAREN: ')';
 
 CARET: '^';
 STAR: '*';
