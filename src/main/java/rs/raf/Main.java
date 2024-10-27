@@ -53,6 +53,8 @@ public class Main {
             String line = reader.readLine();
 
             if (line == null || line.equalsIgnoreCase("exit")) {
+                /* Terminate the possibly EOF line.  */
+                System.out.println();
                 break;
             }
 
