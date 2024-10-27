@@ -19,19 +19,19 @@ printStatement
 expr: additionExpr;
 
 additionExpr
-    : multiplicationExpr ((PLUS | MINUS) multiplicationExpr)*;
+    : initial=multiplicationExpr (op+=(PLUS | MINUS) rest+=multiplicationExpr)*;
 
 multiplicationExpr
-    : exponentExpr ((STAR | SLASH) exponentExpr)* ;
+    : initial=exponentExpr (op+=(STAR | SLASH) rest+=exponentExpr)* ;
 
 exponentExpr
-    : atom (CARET exponentExpr)? ;
+    : lhs=atom (CARET rhs=exponentExpr)? ;
 
 atom
-    : NUMBER
-    | IDENTIFIER
-    | '(' expr ')'
-    | vectorLiteral
+    : NUMBER #NumberConstant
+    | IDENTIFIER #VariableReference
+    | '(' expr ')' #GroupingOperator
+    | vectorLiteral #VectorConstructor
     ;
 
 vectorLiteral

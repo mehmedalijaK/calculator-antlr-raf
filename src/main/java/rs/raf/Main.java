@@ -5,6 +5,9 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import rs.raf.calculator.Calculator;
 import rs.raf.calculator.Parser;
 import rs.raf.calculator.Scanner;
+import rs.raf.calculator.ast.ASTPrettyPrinter;
+import rs.raf.calculator.ast.CSTtoASTConverter;
+import rs.raf.calculator.ast.StatementList;
 import rs.raf.utils.PrettyPrint;
 
 import java.io.BufferedReader;
@@ -67,10 +70,17 @@ public class Main {
         System.out.println("Tokens: " + tokens);
 
         Parser parser = new Parser();
-        ParseTree tree = parser.getSyntaxTree(tokens);
+        var tree = parser.getSyntaxTree(tokens);
 
         if (hadError) return;
 
         System.out.println("Syntax Tree: " + PrettyPrint.prettyPrintTree(tree, parser.getCalculatorParser().getRuleNames()));
+
+        if (hadError) return;
+
+        System.out.println("AST:");
+        var pp = new ASTPrettyPrinter(System.out);
+        var program = (StatementList) tree.accept(new CSTtoASTConverter());
+        program.prettyPrint(pp);
     }
 }
