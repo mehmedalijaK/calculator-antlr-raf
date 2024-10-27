@@ -1,7 +1,7 @@
 package rs.raf;
 
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import rs.raf.calculator.Calculator;
 import rs.raf.calculator.Parser;
 import rs.raf.calculator.Scanner;
@@ -11,16 +11,11 @@ import rs.raf.calculator.ast.StatementList;
 import rs.raf.utils.PrettyPrint;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.List;
 
 public class Main {
     private static final Calculator calculator = new Calculator();
-    static boolean hadError = false;
-    static boolean hadRuntimeError = false;
-
 
     public static void main(String[] args) throws IOException {
         if (args.length == 1) {
@@ -31,17 +26,9 @@ public class Main {
     }
 
     private static void runFile(String path) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
-            StringBuilder content = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append(System.lineSeparator());
-            }
-            run(content.toString());
-        }
-
-        if (hadError) System.exit(65);
-        if (hadRuntimeError) System.exit(70);
+        run(CharStreams.fromFileName(path));
+        if (calculator.hadError()) System.exit(65);
+        if (calculator.hadRuntimeError()) System.exit(70);
     }
 
     private static void runPrompt() throws IOException {
@@ -58,27 +45,26 @@ public class Main {
                 break;
             }
 
-            run(line);
-            hadError = false;
+            calculator.setHadError(false);
+            calculator.setHadRuntimeError(false);
+            run(CharStreams.fromString(line));
         }
     }
 
-    private static void run(String source) {
-        Scanner scanner = new Scanner();
-        List<Token> tokens = scanner.getAllTokens(source);
+    private static void run(CharStream source) {
+        Scanner scanner = new Scanner(calculator);
+        var tokens = scanner.getTokens(source);
 
-        if (hadError) return;
+        if (calculator.hadError()) return;
 
-        System.out.println("Tokens: " + tokens);
-
-        Parser parser = new Parser();
+        Parser parser = new Parser(calculator);
         var tree = parser.getSyntaxTree(tokens);
 
-        if (hadError) return;
-
+        /* ANTLR error recovers, so lets print it in its error recovered
+           form.  */
         System.out.println("Syntax Tree: " + PrettyPrint.prettyPrintTree(tree, parser.getCalculatorParser().getRuleNames()));
 
-        if (hadError) return;
+        if (calculator.hadError()) return;
 
         System.out.println("AST:");
         var pp = new ASTPrettyPrinter(System.out);
