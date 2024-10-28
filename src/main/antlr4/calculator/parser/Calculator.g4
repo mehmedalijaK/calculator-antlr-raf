@@ -18,6 +18,10 @@ printStatement
 
 expr: additionExpr;
 
+/*  Collect the left-hand side of this PLUS or MINUS as initial using '=', and
+    the (op, rest) pairs as lists using '+='.
+
+    See https://github.com/antlr/antlr4/blob/dev/doc/parser-rules.md#rule-element-labels  */
 additionExpr
     : initial=multiplicationExpr (op+=(PLUS | MINUS) rest+=multiplicationExpr)*;
 
