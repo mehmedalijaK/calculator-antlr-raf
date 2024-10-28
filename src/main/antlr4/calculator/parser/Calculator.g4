@@ -1,6 +1,6 @@
 grammar Calculator;
 
-start: statement* ;
+start: statement* EOF;
 
 statement
     : declaration ';'
