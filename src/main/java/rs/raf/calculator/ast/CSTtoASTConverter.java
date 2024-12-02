@@ -7,11 +7,18 @@ import org.antlr.v4.runtime.tree.*;
 import calculator.parser.CalculatorParser.*;
 import calculator.parser.CalculatorLexer;
 import calculator.parser.CalculatorVisitor;
+import rs.raf.calculator.Calculator;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements CalculatorVisitor<Tree> {
 
+    public final List<Block> blockStack = new ArrayList<>();
+
     @Override
     public Tree visitStart(StartContext ctx) {
+        openGlobalBlock();
         var stmts = ctx.statement()
             /* Take all the parsed statements, ... */
             .stream()
@@ -22,6 +29,9 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
             .map(x -> (Statement) x)
             /* ... and put them into a list.  */
             .toList();
+
+        stmts.forEach(this::addStmt);
+        var globalBlock = closeGlobalBlock();
         return new StatementList(getLocation(ctx), stmts);
     }
 
@@ -38,6 +48,7 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
             /* It's an expression statement.  */
             substatement = new ExprStmt(e.getLocation(), e);
         }
+        addStmt((Statement) substatement);
         return (Statement) substatement;
     }
 
@@ -47,7 +58,10 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
            of the variable we're declaring.  */
         var name = ctx.IDENTIFIER().getText();
         var value = (Expr) visit(ctx.expr());
-        return new Declaration(getLocation(ctx), name, value);
+        var decl = new Declaration(getLocation(ctx), name, value);
+        pushDecl(name, decl);
+        addStmt(decl);
+        return decl;
     }
 
     @Override
@@ -61,6 +75,8 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
             .map(x -> (Expr) x)
             /* ... and put them into a list.  */
             .toList();
+        var printStmt = new PrintStmt(getLocation(ctx), args);
+        addStmt(printStmt);
         return new PrintStmt(getLocation(ctx), args);
     }
 
@@ -96,9 +112,9 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
             var rhs = (Expr) visit(ctx.rest.get(i));
 
             var exprOp = switch (op.getType()) {
-            case CalculatorLexer.PLUS -> Expr.Operation.ADD;
-            case CalculatorLexer.MINUS -> Expr.Operation.SUB;
-            default -> throw new IllegalArgumentException("unhandled expr op " + op);
+                case CalculatorLexer.PLUS -> Expr.Operation.ADD;
+                case CalculatorLexer.MINUS -> Expr.Operation.SUB;
+                default -> throw new IllegalArgumentException("unhandled expr op " + op);
             };
 
             /* For an expression A+B+C, the location spanning A+B is the
@@ -217,5 +233,75 @@ public class CSTtoASTConverter extends AbstractParseTreeVisitor<Tree> implements
         /* And then put it together.  */
         var end = new Position (start.line (), start.column () + length - 1);
         return new Location (start, end);
+    }
+
+    /* Block management */
+
+    /** Open new block when `{` */
+    private void openParamBlock (Location location) {
+        openBlock(location);
+    }
+
+    /** Handle global vars */
+    private void openGlobalBlock () {
+        assert blockStack.isEmpty ();
+        openBlock(Location.makeBuiltinLocation());
+    }
+
+    private Block closeGlobalBlock () {
+        var globals = closeBlock();
+        assert blockStack.isEmpty ();
+        assert globals.getStatements ().isEmpty();
+
+        return globals;
+    }
+
+    private void openBlock (Location location) {
+        blockStack.add (new Block (location));
+    }
+
+    private Block closeBlock() {
+        return blockStack.removeLast();
+    }
+
+    /** Finds a Declaration in the currently open scopes.  Returns {@code null} if no
+    such name exists.  Does not print errors.  */
+    private Declaration silentLookup (String name) {
+        for (var scope : blockStack.reversed ())
+        {
+            var result = scope.getEnvironment ().get (name);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
+
+    /** Finds a Declaration in the currently open scopes.  Returns {@code null} if no
+   such name exists.  */
+    private Declaration lookup (Location loc, String name) {
+        var l = silentLookup (name);
+        if (l == null)
+            Calculator.reportError (loc, "unable to resolve name %s", name);
+        return l;
+    }
+
+    private void pushDecl (String name, Declaration decl) {
+        var prev = (blockStack
+                .getLast ()
+                .getEnvironment ()
+                .putIfAbsent (name, decl));
+
+        if (prev != null)
+        {
+            var oldLoc = prev.getLocation();
+            Calculator.reportError (decl.getLocation (), "redeclaration of '%s'", name);
+//            Compiler info for oldLocation
+        }
+    }
+
+    private void addStmt (Statement stmt) {
+        blockStack.getLast().getStatements().add(stmt);
+        if (stmt instanceof Declaration declstmt)
+            pushDecl (declstmt.getName (), declstmt);
     }
 }

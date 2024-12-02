@@ -46,4 +46,8 @@ public class Calculator {
                            message.formatted(args));
         setHadError(true);
     }
+
+    public static void reportError (Location location, String message, Object... args) {
+        System.err.printf ("error: %s: %s\n", location.toString(), message);
+    }
 }

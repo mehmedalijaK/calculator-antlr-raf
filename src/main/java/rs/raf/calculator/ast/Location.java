@@ -9,4 +9,11 @@ public record Location(Position start, Position end) {
 
 	return new Location(start, stop);
     }
+
+    public static Location
+    makeBuiltinLocation ()
+    {
+        var start = new Position (1, 0);
+        return new Location (start, start);
+    }
 }
